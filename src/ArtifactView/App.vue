@@ -6,13 +6,14 @@ import { ipcRenderer } from 'electron'
 import { status, STATUS } from './status'
 import { ElMessageBox } from 'element-plus'
 import { recognizeArtifact } from './recognizeArtifact'
-import { split, imageDump } from './imageProcess'
-import { getposition, capture, getActiveWindow, sendToAppWindow } from './ipc'
+import { ocr, split, imageDump, textDump } from './imageProcess'
+import { getposition, capture, getActiveWindow, sendToAppWindow, setTransparent, click } from './ipc'
 
 import { sendWrongOCRFeedback } from '@/api/feedback'
 
 import AppHeader from './Components/AppHeader'
 import Capture from './Components/Capture/Index'
+
 export default {
     components: {
         AppHeader,
@@ -44,8 +45,21 @@ export default {
         )
         ipcRenderer.send('readyArtifactView')
         ipcRenderer.on('tryocr', async (event, { id }) => {
-            await this.processWithTimeout()
-            ipcRenderer.sendTo(event.senderId, `tryocr-${id}`)
+            const result = await this.processWithTimeout(() => {
+                ipcRenderer.sendTo(event.senderId, `tryocr-${id}-capture`)
+            })
+            ipcRenderer.sendTo(event.senderId, `tryocr-${id}`, result)
+        })
+        ipcRenderer.on('clickLock', async (event, { id }) => {
+            const lock = this.$refs['captureDom'].$refs['overlay.lock']
+            const { x, y, height, width } = lock.getBoundingClientRect()
+            const offsetY = y + height / 2
+            const offsetX = x + width / 2
+            const [winx, winy] = await getposition()
+            const finalx = (winx + offsetX) * window.devicePixelRatio
+            const finaly = (winy + offsetY) * window.devicePixelRatio
+            await click({ x: finalx, y: finaly })
+            ipcRenderer.sendTo(event.senderId, `clickLock-${id}`, null)
         })
     },
     beforeUnmount() {
@@ -82,11 +96,11 @@ export default {
                 this.activeWindow = currentWin
             }
         },
-        async processWithTimeout() {
+        async processWithTimeout(captureCB) {
             if (status.status === STATUS.LOADING) return
             status.status = STATUS.LOADING
             try {
-                const [result] = await Promise.all([this.processOnce(), sleep(200)])
+                const result = await this.processOnce(captureCB)
                 status.status = STATUS.SUCCESS
                 return result
             } catch (e) {
@@ -94,11 +108,11 @@ export default {
                 status.status = STATUS.ERROR
             }
         },
-        splitImages(canvas) {
+        async splitImages(canvas, scale) {
             const posObj = this.$refs.captureDom.getPosition()
-            return split(canvas, posObj)
+            return await split(canvas, posObj, scale)
         },
-        async processOnce() {
+        async processOnce(captureCB) {
             /* 计算窗口位置 */
             const p = window.devicePixelRatio
             let [x, y] = await getposition()
@@ -110,80 +124,90 @@ export default {
             /* 抓屏 */
             let canvas = await capture(x, y, w * p, h * p)
 
-            /* 高dpi缩放 */
-            if (p !== 1) {
-                let srcCanvas = canvas
-                canvas = document.createElement('canvas')
-                canvas.width = w
-                canvas.height = h
-                const ctx = canvas.getContext('2d')
-                ctx.imageSmoothingEnabled = true
-                ctx.drawImage(srcCanvas, 0, 0, w, h)
-            }
-
             /* 拆分、预处理 */
-            let ret = this.splitImages(canvas)
+            let ret = await this.splitImages(canvas, p)
 
             /* 调试写入图片文件 */
+            const pid = Date.now().toString()
             if (status.runtimeDebug) {
-                await imageDump(canvas, ret)
+                imageDump(canvas, ret, pid)
+            }
+
+            if (captureCB) {
+                captureCB()
             }
 
             /* OCR、识别 */
-            const [artifact, potentialErrors, ocrResult] = await recognizeArtifact(ret)
+            const ocrres = await ocr(ret)
+            /* 调试写入OCR文本2 */
+            if (status.runtimeDebug) {
+                textDump(JSON.stringify(ocrres), pid, 'ocr.json')
+            }
+
+            /* 后处理 */
+            let ares
+            try {
+                ares = await recognizeArtifact(ocrres, ret)
+            } catch (e) {
+                console.warn(ocrres)
+                throw e
+            }
+            const [artifact, potentialErrors, ocrResult] = ares
             status.artifact = artifact
             status.potentialErrors = potentialErrors
-
-            const wrongReportData = JSON.parse(
-                JSON.stringify({
-                    artifact,
-                    screenshot: '',
-                    message: '',
-                    ocrResult: {},
-                    splitImages: {},
-                    version: status.version,
-                    build: status.build,
-                }),
-            )
-            console.log(artifact, ocrResult)
-            for (let i in ocrResult) {
-                if ({}.hasOwnProperty.call(ocrResult, i)) {
-                    for (let j of ocrResult[i].words) {
-                        delete j.line
-                        delete j.page
-                        delete j.block
-                        delete j.paragraph
-                    }
-                    wrongReportData.ocrResult[i] = ocrResult[i].words
-                }
-            }
-            const alt = {}
-            for (let i of [
-                'availHeight',
-                'availLeft',
-                'availTop',
-                'availWidth',
-                'width',
-                'height',
-                'pixelDepth',
-                'colorDepth',
-            ]) {
-                alt[i] = window.screen[i]
-            }
-            alt.angle = window.screen.orientation.angle
-            wrongReportData.screen = alt
-            wrongReportData.devicePixelRatio = window.devicePixelRatio
-            wrongReportData.windowWidth = window.innerWidth
-            wrongReportData.windowHeight = window.innerHeight
-            status.wrongReportData = wrongReportData
-            status.wrongReportData.screenshot = canvas.toDataURL('image/webp')
-            for (const i in ret) {
-                if ({}.hasOwnProperty.call(ret, i)) {
-                    if (i === 'color') continue
-                    status.wrongReportData.splitImages[i] = ret[i].canvas.toDataURL('image/webp')
-                }
-            }
             this.saveToMain()
+            ;(async () => {
+                console.log(artifact, ocrResult)
+                const wrongReportData = JSON.parse(
+                    JSON.stringify({
+                        artifact,
+                        screenshot: '',
+                        message: '',
+                        ocrResult: {},
+                        splitImages: {},
+                        version: status.version,
+                        build: status.build,
+                    }),
+                )
+                for (let i in ocrResult) {
+                    if ({}.hasOwnProperty.call(ocrResult, i)) {
+                        for (let j of ocrResult[i].words) {
+                            delete j.line
+                            delete j.page
+                            delete j.block
+                            delete j.paragraph
+                        }
+                        wrongReportData.ocrResult[i] = ocrResult[i].words
+                    }
+                }
+                const alt = {}
+                for (let i of [
+                    'availHeight',
+                    'availLeft',
+                    'availTop',
+                    'availWidth',
+                    'width',
+                    'height',
+                    'pixelDepth',
+                    'colorDepth',
+                ]) {
+                    alt[i] = window.screen[i]
+                }
+                alt.angle = window.screen.orientation.angle
+                wrongReportData.screen = alt
+                wrongReportData.devicePixelRatio = window.devicePixelRatio
+                wrongReportData.windowWidth = window.innerWidth
+                wrongReportData.windowHeight = window.innerHeight
+                status.wrongReportData = wrongReportData
+                status.wrongReportData.screenshot = canvas.toDataURL('image/webp')
+                for (const i in ret) {
+                    if ({}.hasOwnProperty.call(ret, i)) {
+                        if (i === 'color') continue
+                        status.wrongReportData.splitImages[i] = ret[i].canvas.toDataURL('image/webp')
+                    }
+                }
+            })()
+            return artifact
         },
         async saveToMain() {
             status.artifactBackup = JSON.parse(JSON.stringify(status.artifact))
@@ -223,6 +247,9 @@ export default {
             } catch (e) {}
             this.feedbackLoading = false
         },
+        async onSetTransparent(transparent) {
+            setTransparent(transparent)
+        },
     },
 }
 </script>
@@ -237,6 +264,7 @@ export default {
             @delete="onDelete"
             @reset="onReset"
             @feedback="onFeedback"
+            @transparent="onSetTransparent"
         />
         <el-dialog v-model="feedbackVisible" title="反馈识别错误" width="90%">
             <div class="feedback-desc">
@@ -272,15 +300,21 @@ export default {
     overflow: hidden;
 }
 @media only screen and (-webkit-min-device-pixel-ratio: 1.2) {
-    .float,
-    .actions {
+    .float {
         zoom: 0.85;
+        font-size: 12px;
+    }
+    .title {
+        font-size: 12px;
     }
 }
 @media only screen and (-webkit-min-device-pixel-ratio: 1.5) {
-    .float,
-    .actions {
+    .float {
         zoom: 0.72;
+        font-size: 13px;
+    }
+    .title {
+        font-size: 12px;
     }
 }
 .el-overlay {

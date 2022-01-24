@@ -9,6 +9,8 @@
 ![MIT License](https://shields.io/badge/license-MIT-green)
 [![POEditor - English](https://img.shields.io/poeditor/progress/434087/en?token=d0ebc6efc6db6d4c57aaa1103a0c4abd)](https://poeditor.com/join/project?hash=jZiEtV01OO)
 [![POEditor - Japanese](https://img.shields.io/poeditor/progress/434087/ja?token=d0ebc6efc6db6d4c57aaa1103a0c4abd)](https://poeditor.com/join/project?hash=jZiEtV01OO)
+[![POEditor - Portuguese (BR)](https://img.shields.io/poeditor/progress/434087/pt-br?token=d0ebc6efc6db6d4c57aaa1103a0c4abd)](https://poeditor.com/join/project?hash=jZiEtV01OO)
+[![POEditor - Russian](https://img.shields.io/poeditor/progress/434087/ru?token=d0ebc6efc6db6d4c57aaa1103a0c4abd)](https://poeditor.com/join/project?hash=jZiEtV01OO)
 
 </div>
 
@@ -20,17 +22,31 @@
 ## 功能
  - 圣遗物OCR识别
  - 圣遗物自动切换
+ - 地图悬浮窗
+ - [实验性] 识别小地图并与地图悬浮窗同步
 
 ### 圣遗物导出
  - 使用游戏字体特殊训练的本地[PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR)
  - 支持所有服务器(天空岛、世界树、外服)  
  - 支持大部分游戏分辨率、部分云游戏平台  
  - 目前暂时仅支持识别中文  
- - 可以导出到[莫娜占卜铺](https://www.genshin.art/)进行最大伤害计算、自动配装等
+ - 可以导出到其他工具进行最大伤害计算、自动配装等。目前支持的格式如下：
+   - [莫娜占卜铺](https://www.mona-uranai.com/)
+   - [Mingyulab](https://genshin.mingyulab.com/)
+   - [genshin-optimizer](https://frzyc.github.io/genshin-optimizer/)
 
 ### 圣遗物自动切换
  - 使用`opencv`自动检测圣遗物列表，并自动点击和切换
+ - 使用`ViGEm`模拟手柄并自动切换（需手动开启）
  - 可关联自带OCR功能自动识别，也可配合其他识别工具使用
+
+### 地图悬浮窗
+ - 当前仅支持米游社大地图（国内版）
+ - 内置了 [Seelie Plugin](https://chrome.google.com/webstore/detail/seelie/jkapcfbicpbhigopkhpielmbkgfchdgh) 的部分功能（已授权）。
+
+### 小地图识别与同步
+ - 使用`OpenCV`识别游戏内小地图，计算坐标，并与地图悬浮窗中的互动地图同步。
+ - 实验性功能，算法仍待调整，可能不准确或不稳定。
 
 ## 数据保存与便携版
 程序默认数据保存在`%appdata%/cocogoat/config`下。若需便携使用（如放入U盘携带等），您可以在程序exe文件所在位置新建`cocogoat`文件夹，程序启动时将以此文件夹作为数据目录。
@@ -46,15 +62,11 @@
  - Q: 能否导出数据到....  
    A: 未来可期，只需要带着需要的导入格式提交PR/issue/加群反馈......
 
-**已知问题（v0.4.1）：**
- - 如果出现点击识别后程序闪退，请检查程序目录**是否包含中文**，该版本目前不能在中文目录运行。  
+**已知问题：**
  - 如果游戏显示比例不是16:9，可能会出现出现识别窗口无法对齐的问题，建议调节游戏分辨率。  
    推荐分辨率：**1920x1080**和**1600x900**。
- - 由于滚轮速度不同，在自动切换时可能出现滚动过快跳过行的问题，目前建议暂时在系统设置中调节滚轮速度。
- - 如果系统缩放比大于**150%**且未对游戏本身开启系统显示缩放，识别率将极大降低。该问题已定位，但仍在优化。
- - 部分用户可能遇到`cannot load xxxxx.dll`并无法启动程序问题，如有遇到请加群获取特制版，该问题属于打包工具，已尝试反馈，正在等得回复。
 
-如您的问题未在此处列出，您可以[搜索或提交issue](https://github.com/YuehaiTeam/cocogoat/issues)或者[加入交流群：933468075](https://jq.qq.com/?_wv=1027&k=Pl2MFHcA)反馈。
+如您的问题未在此处列出或遇到不明闪退问题，您可以[搜索或提交issue](https://github.com/YuehaiTeam/cocogoat/issues)或者[加入交流群：933468075](https://jq.qq.com/?_wv=1027&k=Pl2MFHcA)反馈。
 
 ## 更新
  - 如果您正在使用`v0.3.1`及以上版本，您可以在"设置"页面检查并自动升级。  

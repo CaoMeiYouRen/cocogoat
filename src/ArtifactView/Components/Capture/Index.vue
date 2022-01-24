@@ -9,7 +9,7 @@ export default {
         Actions,
         RecognizeResult,
     },
-    emits: ['start', 'modify', 'delete', 'reset', 'feedback'],
+    emits: ['start', 'modify', 'delete', 'reset', 'feedback', 'transparent'],
     data() {
         return {
             STATUS,
@@ -49,8 +49,14 @@ export default {
     <section ref="overlay.main" class="overlay overlay-main"></section>
     <section ref="overlay.level" class="overlay overlay-level"></section>
     <section ref="overlay.sub" class="overlay overlay-sub"></section>
+    <section
+        ref="overlay.lock"
+        class="overlay overlay-lock"
+        @mouseenter="$emit('transparent', true)"
+        @mouseleave="$emit('transparent', false)"
+    ></section>
     <section class="overlay overlay-user">
-        <section class="overlay-user-in"></section>
+        <section ref="overlay.user" class="overlay-user-in"></section>
     </section>
     <section class="float">
         <intro :class="{ show: status.status === STATUS.INTRO }" @start="$emit('start')" />
@@ -102,9 +108,11 @@ export default {
 }
 .overlay-color {
     top: 2%;
-    right: 8%;
+    right: 12%;
     width: 2%;
     height: 1.3%;
+    border: 2px solid;
+    border-color: transparent !important;
 }
 .overlay-user {
     left: 0;
@@ -130,6 +138,15 @@ export default {
     border-bottom: 2px solid;
     border-left: 2px solid;
 }
+.overlay-lock {
+    left: 86.2%;
+    right: 4.6%;
+    top: 32.3%;
+    height: 4.7%;
+    border-top: 2px solid;
+    border-right: 2px solid;
+    border-left: 2px solid;
+}
 
 .overlay-level {
     width: 16%;
@@ -142,7 +159,7 @@ export default {
 .overlay-main {
     top: 14%;
     left: 2.5%;
-    width: 36%;
+    width: 42%;
     height: 11%;
     border: 2px solid;
 }

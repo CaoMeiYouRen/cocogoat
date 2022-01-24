@@ -18,7 +18,7 @@ interface IBusData {
 }
 
 // for deduplication
-const artifactsHashes = new Set<string>()
+const artifactsHashes = new Map<string, number>()
 function calculateArtifactHash(artifact: Artifact): string {
     const prefix = `${artifact.name}-${artifact.level}-${artifact.main.name}-${artifact.main.value}-${artifact.stars}`
     const subs = artifact.sub.map((s) => `${s.name}-${s.value}`)
@@ -38,7 +38,7 @@ export async function loadData() {
         for (const artifact of artifacts) {
             const hash = calculateArtifactHash(artifact)
             if (!artifactsHashes.has(hash)) {
-                artifactsHashes.add(hash)
+                artifactsHashes.set(hash, artifact.id)
             }
             bus.artifacts.push(artifact)
         }
@@ -51,6 +51,16 @@ export async function loadData() {
 
     ipcRenderer.on('artifactDelete', (event, { id }: { id: number }) => {
         artifactDelete(id)
+    })
+    ipcRenderer.on('syncArtifact', (event, { id, artifact }: { id: number; artifact: Artifact }) => {
+        const hash = calculateArtifactHash(artifact)
+        const artifactId = artifactsHashes.get(hash)
+        for (const artifact of bus.artifacts)
+            if (artifactId === artifact.id) {
+                ipcRenderer.sendTo(event.senderId, `syncArtifact-${id}`, JSON.parse(JSON.stringify(artifact)))
+                return
+            }
+        ipcRenderer.sendTo(event.senderId, `syncArtifact-${id}`, null)
     })
 
     watch(
@@ -94,8 +104,9 @@ export function artifactPush(artifact: Artifact) {
                     // if (!bus.config.options.artifacts.keepSameArtifacts && artifactsHashes.has(newHash)) {
                     //     // 改成和某个已有的圣遗物一样了。怎么办？去重模式下直接去掉
                     // } else {
+                    artifact.lock = bus.artifacts[i].lock
                     bus.artifacts[i] = artifact
-                    artifactsHashes.add(newHash)
+                    artifactsHashes.set(newHash, artifact.id)
                     // }
                     console.log('EDIT', artifact)
                     break
@@ -105,9 +116,47 @@ export function artifactPush(artifact: Artifact) {
     }
     if (!isModify) {
         const hash = calculateArtifactHash(artifact)
-        if (bus.config.options.artifacts.keepSameArtifacts || !artifactsHashes.has(hash)) {
+        let upgrade = false
+        if (bus.config.options.artifacts.upgradeArtifacts) {
+            for (const oldArtifact of bus.artifacts) {
+                let same = true
+                if (
+                    oldArtifact.main.name !== artifact.main.name ||
+                    Number(oldArtifact.main.value.replace('%', '')) > Number(artifact.main.value.replace('%', '')) ||
+                    oldArtifact.stars !== artifact.stars ||
+                    oldArtifact.name !== artifact.name
+                ) {
+                    same = false
+                    continue
+                }
+                const newSubs: Record<string, string> = {}
+                for (const newSub of artifact.sub) {
+                    newSubs[newSub.name] = newSub.value
+                }
+                for (const oldSub of oldArtifact.sub) {
+                    if (
+                        newSubs[oldSub.name] === undefined ||
+                        Number(newSubs[oldSub.name].replace('%', '')) < Number(oldSub.value.replace('%', ''))
+                    ) {
+                        same = false
+                        break
+                    }
+                }
+                if (same) {
+                    artifactsHashes.delete(calculateArtifactHash(oldArtifact))
+                    bus.artifacts.splice(bus.artifacts.indexOf(oldArtifact), 1)
+                    artifact.id = oldArtifact.id
+                    artifact.lock = oldArtifact.lock
+                    artifactsHashes.set(hash, artifact.id)
+                    bus.artifacts.push(artifact)
+                    upgrade = true
+                    break
+                }
+            }
+        }
+        if ((bus.config.options.artifacts.keepSameArtifacts || !artifactsHashes.has(hash)) && !upgrade) {
             bus.artifacts.push(artifact)
-            artifactsHashes.add(hash)
+            artifactsHashes.set(hash, artifact.id)
         }
         console.log('PUSH', artifact)
     }

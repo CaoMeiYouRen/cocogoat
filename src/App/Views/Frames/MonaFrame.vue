@@ -10,7 +10,7 @@ export default defineComponent({
         }
     },
     mounted() {
-        const convertedJson = convertAsMona(JSON.parse(JSON.stringify(bus.artifacts)), true)
+        const convertedJson = JSON.stringify(convertAsMona(JSON.parse(JSON.stringify(bus.artifacts))))
         const frame: any = this.$refs.monaFrame
         // @ts-ignore
         window.monaFrame = frame
@@ -26,6 +26,14 @@ export default defineComponent({
                 }
                 .character-panel {
                     flex-wrap: wrap !important;
+                }
+                @media only screen and (min-width: 900px){
+                    html body .hidden-sm-and-down {
+                        display: block!important;
+                    }
+                    html body .hidden-md-and-up{
+                        display:none !important;
+                    }
                 }`)
                 frame.executeJavaScript(`monaAPI.updateAllArtifacts(${convertedJson})`)
                 this.loading = false
@@ -37,20 +45,20 @@ export default defineComponent({
 </script>
 <template>
     <teleport to="#app-title">
-        <span>莫娜占卜铺</span>
-        <span class="title-desc">(由 @wormtql 开发，已授权)</span>
+        <span>{{ __('莫娜占卜铺') }}</span>
+        <span class="title-desc">{{ __('(由 @wormtql 开发，已授权)') }}</span>
     </teleport>
     <div class="page-main">
         <div
             v-loading="loading"
-            element-loading-text="正在敲开伟大占星术士的家门..."
+            element-loading-text="__('正在敲开伟大占星术士的家门...')"
             element-loading-background="#fff"
             class="loading-area"
         ></div>
         <webview
             id="mona-frame"
             ref="monaFrame"
-            src="https://genshin.art/"
+            src="https://mona-uranai.com/"
             style="width: 100%; height: 100%; margin: 0"
         ></webview>
     </div>

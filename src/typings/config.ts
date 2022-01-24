@@ -1,7 +1,15 @@
 export interface IArtifactOptions {
     preserveSwitcher: boolean
     keepSameArtifacts: boolean
+    upgradeArtifacts: boolean
     autoSwitchDelay: number
+    fastScroll: boolean
+}
+export interface IwindowStates {
+    x?: number
+    y?: number
+    width: number
+    height: number
 }
 export interface IwindowStates {
     x?: number
@@ -47,7 +55,9 @@ export function defaultConfig(): IConfig {
             artifacts: {
                 preserveSwitcher: false,
                 keepSameArtifacts: false,
+                upgradeArtifacts: false,
                 autoSwitchDelay: 0.5,
+                fastScroll: true,
             },
             windowStates: {},
         },

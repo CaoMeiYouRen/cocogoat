@@ -2,12 +2,13 @@ import path from 'path'
 import fsex from 'fs-extra'
 import robot from 'robotjs'
 import ioHook from 'iohook'
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, shell, session } from 'electron'
 import { saveOptions } from './config'
 import { config } from '@/typings/config'
-import { windows, createArtifactView, createArtifactSwitch } from './windows'
+import { windows, createArtifactView, createArtifactSwitch, createMapView, createMapScan } from './windows'
 // @ts-ignore
 import activeWindows from 'electron-active-window/build/Release/wm.node'
+import { joystickInit, joystickStatus, joystickStop } from './joystick'
 robot.setMouseDelay(8)
 const getActiveWindow = activeWindows.getActiveWindow
 
@@ -39,6 +40,10 @@ export function interactInit() {
     ipcMain.on('openExternal', (event, { url }) => {
         shell.openExternal(url)
     })
+    ipcMain.on('clearStorageData', (event, { name, options }) => {
+        const sess = session.fromPartition(name)
+        sess.clearStorageData(options)
+    })
     ipcMain.on('readArtifacts', async (event, { id }) => {
         try {
             const artifacts = await fsex.readJSON(path.join(config.configDir, 'artifacts.json'))
@@ -55,7 +60,14 @@ export function interactInit() {
         windows.artifactView && windows.artifactView.webContents.send('mouseup', event)
     })
     ioHook.start()
+    ipcMain.on('joystickInit', joystickInit)
+    ipcMain.on('joystickStop', joystickStop)
+    ipcMain.on('joystickStatus', (event, { id }) => {
+        event.reply(`joystickStatus-${id}`, joystickStatus())
+    })
     ipcMain.on('createArtifactView', createArtifactView)
+    ipcMain.on('createMapView', createMapView)
+    ipcMain.on('createMapScan', createMapScan)
     ipcMain.on('createArtifactSwitch', createArtifactSwitch)
     ipcMain.on('readyArtifactSwitch', () => {
         windows.artifactSwitch && windows.artifactSwitch.show()
@@ -94,6 +106,14 @@ export function interactInit() {
             windows.artifactSwitch.setIgnoreMouseEvents(false)
         }
     })
+    ipcMain.on('setTransparentArtifactView', (event, { transparent }) => {
+        if (!windows.artifactView) return
+        if (transparent) {
+            windows.artifactView.setIgnoreMouseEvents(true, { forward: true })
+        } else {
+            windows.artifactView.setIgnoreMouseEvents(false)
+        }
+    })
     ipcMain.on('devtoolsApp', () => {
         if (!windows.app) return
         try {
@@ -123,6 +143,10 @@ export function interactInit() {
         const t = robot.screen.capture(x, y, w, h)
         event.reply(`capture-${id}`, t.image)
     })
+    ipcMain.on('getPosition', (event, { id }) => {
+        const win = BrowserWindow.fromWebContents(event.sender)
+        win && event.reply(`getPosition-${id}`, win.getPosition())
+    })
     ipcMain.on('getArtifactViewPosition', (event, { id }) => {
         if (!windows.artifactView) return
         event.reply(`getArtifactViewPosition-${id}`, windows.artifactView.getPosition())
@@ -139,6 +163,9 @@ export function interactInit() {
     })
     ipcMain.on('getArtifactViewWindowId', (event, { id }) => {
         event.reply(`getArtifactViewWindowId-${id}`, windows.artifactView ? windows.artifactView.webContents.id : -1)
+    })
+    ipcMain.on('getMapViewWindowId', (event, { id }) => {
+        event.reply(`getMapViewWindowId-${id}`, windows.mapView ? windows.mapView.webContents.id : -1)
     })
     ipcMain.on(
         'mouseClick',

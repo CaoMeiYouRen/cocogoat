@@ -8,8 +8,7 @@ export enum STATUS {
     'PAGING',
     'SUCCESS',
     'ERROR',
-    'MODIFIED',
-    'DELETED',
+    'JOYSTICK',
 }
 interface IArtifactSwitchBus {
     intro: boolean
@@ -24,6 +23,7 @@ interface IArtifactSwitchBus {
     isLastPage: boolean
     blockWidth: number
     options: IOptions | null
+    devmsg: string
 }
 export const bus = reactive(<IArtifactSwitchBus>{
     intro: true,
@@ -40,6 +40,7 @@ export const bus = reactive(<IArtifactSwitchBus>{
     isLastPage: false,
     blockWidth: 0,
     options: null,
+    devmsg: '',
 })
 // @ts-ignore
 window.bus = bus

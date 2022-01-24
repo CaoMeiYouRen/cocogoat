@@ -142,6 +142,36 @@ const getStander = {
         游医的怀钟: ['travelingDoctor', 'sand'],
         游医的药壶: ['travelingDoctor', 'cup'],
         游医的方巾: ['travelingDoctor', 'head'],
+        勋绩之花: ['tenacityOfTheMillelith', 'flower'],
+        昭武翎羽: ['tenacityOfTheMillelith', 'feather'],
+        金铜时晷: ['tenacityOfTheMillelith', 'sand'],
+        盟誓金爵: ['tenacityOfTheMillelith', 'cup'],
+        将帅兜鍪: ['tenacityOfTheMillelith', 'head'],
+        无垢之花: ['paleFlame', 'flower'],
+        贤医之羽: ['paleFlame', 'feather'],
+        停摆之刻: ['paleFlame', 'sand'],
+        超越之盏: ['paleFlame', 'cup'],
+        嗤笑之面: ['paleFlame', 'head'],
+        明威之镡: ['emblemOfSeveredFate', 'flower'],
+        切落之羽: ['emblemOfSeveredFate', 'feather'],
+        雷云之笼: ['emblemOfSeveredFate', 'sand'],
+        绯花之壶: ['emblemOfSeveredFate', 'cup'],
+        华饰之兜: ['emblemOfSeveredFate', 'head'],
+        羁缠之花: ['shimenawaReminiscence', 'flower'],
+        思忆之矢: ['shimenawaReminiscence', 'feather'],
+        朝露之时: ['shimenawaReminiscence', 'sand'],
+        祈望之心: ['shimenawaReminiscence', 'cup'],
+        无常之面: ['shimenawaReminiscence', 'head'],
+        荣花之期: ['huskOfOpulentDreams', 'flower'],
+        华馆之羽: ['huskOfOpulentDreams', 'feather'],
+        众生之谣: ['huskOfOpulentDreams', 'sand'],
+        梦醒之瓢: ['huskOfOpulentDreams', 'cup'],
+        形骸之笠: ['huskOfOpulentDreams', 'head'],
+        海染之花: ['oceanHuedClam', 'flower'],
+        渊宫之羽: ['oceanHuedClam', 'feather'],
+        离别之贝: ['oceanHuedClam', 'sand'],
+        真珠之笼: ['oceanHuedClam', 'cup'],
+        海祇之冠: ['oceanHuedClam', 'head'],
     },
     tag: <Record<string, string>>{
         暴击率: 'critical',
@@ -166,6 +196,7 @@ const getStander = {
 }
 export type MonaArtifactTypeName = 'flower' | 'feather' | 'sand' | 'cup' | 'head'
 interface MonaArtifact {
+    id: number // ID
     setName: string // 套装名
     detailName: string // 中文名
     position: MonaArtifactTypeName // 位置, slot
@@ -184,8 +215,8 @@ interface MonaInterface {
     cup: MonaArtifact[]
     head: MonaArtifact[]
 }
-export function convertAsMona(artifacts: Artifact[], raw = false) {
-    console.log(artifacts)
+
+export function convertAsMona(artifacts: Artifact[]) {
     const json = {
         version: '1',
         cocogoat: '1',
@@ -239,8 +270,5 @@ export function convertAsMona(artifacts: Artifact[], raw = false) {
             console.log(e)
         }
     }
-    if (raw) {
-        return JSON.stringify(json)
-    }
-    return JSON.stringify(json, null, 4)
+    return json
 }

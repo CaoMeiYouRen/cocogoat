@@ -2,6 +2,7 @@
 import { v4 as uuid } from 'uuid'
 import { ipcRenderer } from 'electron'
 import { IocrResult } from '@/typings/ocr'
+import { sleep } from './utils'
 export { getConfig } from '@/App/ipc'
 interface IactiveWindow {
     os: string
@@ -65,14 +66,29 @@ export function devtools() {
 export function createArtifactSwitch() {
     ipcRenderer.send('createArtifactSwitch')
 }
+let winAppId: number = -1
 export async function sendToAppWindow(channel: string, data: any): Promise<void> {
     const id = uuid()
+    if (winAppId < 0) {
+        const p = new Promise((resolve) => {
+            ipcRenderer.once(`getAppWindowId-${id}`, (result, data) => resolve(data))
+        })
+        ipcRenderer.send('getAppWindowId', { id })
+        winAppId = Number(await p)
+    }
+    ipcRenderer.sendTo(winAppId, channel, data)
+}
+export function setTransparent(t: boolean) {
+    ipcRenderer.send('setTransparentArtifactView', { transparent: t })
+}
+
+export async function click({ x, y }: { x: number; y: number }) {
+    const id = uuid()
     const p = new Promise((resolve) => {
-        ipcRenderer.once(`getAppWindowId-${id}`, (result, data) => resolve(data))
+        ipcRenderer.once(`mouseClick-${id}`, (result, data) => resolve(data))
     })
-    ipcRenderer.send('getAppWindowId', { id })
-    const windowId = Number(await p)
-    console.log('get app window id:', windowId)
-    console.log(channel, data)
-    ipcRenderer.sendTo(windowId, channel, data)
+    ipcRenderer.send('mouseClick', { x, y, id })
+    await p
+    await sleep(200)
+    return
 }
